@@ -1,0 +1,32 @@
+public class N26_CountryDetailsWrapper {
+    
+    @AuraEnabled
+    public String countryName;
+    @AuraEnabled
+    public String productName; 
+    @AuraEnabled
+    public Boolean isEditable = false;
+    @AuraEnabled
+    public String errorMessage;
+    @AuraEnabled
+    public String productId;
+    @AuraEnabled
+    public Boolean editVisible = true;
+    @AuraEnabled
+    public List<N26_ProductDetailsWrapper> tableDataWrapper;
+    
+    public class N26_ProductDetailsWrapper {
+    @AuraEnabled
+    public String productType;
+    @AuraEnabled
+    public String amount;
+    @AuraEnabled
+    public String currencyISO;
+    @AuraEnabled
+    public Boolean isEditable = false;
+    @AuraEnabled
+    public String recordId;
+        
+	}
+
+}
