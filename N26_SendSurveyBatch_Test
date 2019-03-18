@@ -1,0 +1,24 @@
+/*******************************************************************************************************************  
+    Apex Class Name     : N26_SendSurveyBatch_Test  
+    Created Date        : 18 March 2019
+    Description         : Used to send survey batch test
+* Developer                         Date                   Description
+* -----------------------------------------------------------------------------------------------------------------                      
+* Ramanarayanan P                 3/18/2019                 Original Version
+*************************************************************************************************************************/
+@isTest
+public class N26_SendSurveyBatch_Test {
+	
+    @TestSetup
+    static void createContactData() {
+        List<contact> bulkContacts = N26_TestDataFactory.createBulkContacts(150);
+        insert bulkContacts;
+    }
+    
+    static testMethod void testBatch() {
+        N26_SendSurveyBatch batch = new N26_SendSurveyBatch();
+        Test.startTest();
+        Database.executeBatch(batch,150);
+        Test.stopTest();
+    }
+}
