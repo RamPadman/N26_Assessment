@@ -1,0 +1,47 @@
+/*******************************************************************************************************************  
+    Apex Class Name     : N26_SendSurveyBatch  
+    Created Date        : 16 March 2019
+    Description         : Send email to customers with a survey date less than now. 
+						  Actual email is sent from process builder.
+* Developer                         Date                   Description
+* -----------------------------------------------------------------------------------------------------------------                      
+* Ramanarayanan P                 3/16/2019                 Original Version
+*************************************************************************************************************************/
+global class N26_SendSurveyBatch implements Database.Batchable<sObject> {
+    private List<Id> contactIds = new List<Id>();
+    private Map<String,EmailTemplate> languageTemplateMap = new Map<String,EmailTemplate>();
+    private List<sObject> surveyContList = new List<sObject>();
+    private String emailTemplateId;
+    private List<Contact> successContList = new List<Contact>();
+    /**
+     * Get Contact details, where survey date is less than or equal to today 
+     **/
+	global Database.QueryLocator start(Database.BatchableContext BC) {
+        //code to be removed , remove stateful interface
+		String contactQuery = 'SELECT Id,Language__c,Email,Survey_Email_Sent__c,survey_date__c from Contact where (survey_date__c <= TODAY AND Email != NULL AND Survey_Email_Sent__c = false)';
+        return Database.getQueryLocator(contactQuery);
+   }
+	/**
+	 * Upate a temporary field, thereby triggering the processbuilder to send emails
+	 * 
+	 * **/
+	global void execute(Database.BatchableContext BC, List<Contact> scope) {
+        try {
+        for(Contact sObj:scope) {
+            //check if survey date is less than current date/time
+            if(N26_Utility.checkSurveyDateLimits(sObj.survey_date__c)) {
+                sObj.Survey_Email_Sent__c = true;
+                surveyContList.add(sObj);
+            }
+        }
+        //proceed with further updates incase of exception, so that failed records can be 
+        //picked up in next day batch
+       Database.SaveResult[] saveResult  = Database.update(surveyContList,false);
+        }catch (Exception ex) {
+            //a log object can be created to store the results.
+            System.debug('Exception'+ex);
+        }
+    }
+    
+    global void finish(Database.BatchableContext BC){}   
+}
