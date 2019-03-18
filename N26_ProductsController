@@ -1,0 +1,198 @@
+/*******************************************************************************************************************  
+    Apex Class Name     : N26_ProductsController  
+    Created Date        : 18 March 2019
+    Description         : Used to get,save & create product details - ltng component controller
+* Developer                         Date                   Description
+* -----------------------------------------------------------------------------------------------------------------                      
+* Ramanarayanan P                 3/18/2019                 Original Version
+*************************************************************************************************************************/
+public class N26_ProductsController {
+    /**
+     * Get Products associated to customer
+     * Returns a wrapper list to be displayed in lightning component
+     * */
+    @AuraEnabled
+    public static List<N26_CountryDetailsWrapper> getProducts(String recordId) {
+        List<N26_CountryDetailsWrapper> prodWrap = new List<N26_CountryDetailsWrapper>();
+        //return early if the record id is blank
+        if(String.isBlank(recordId)) {
+            return prodWrap;
+        }
+        String contactId;
+        //get corresponding product details
+        List<Case> caseList = [Select Id,ContactId,Contact.Home_Country__r.Name,Contact.Home_Country__c from Case where Id =:recordId];
+        if(!caseList.isEmpty()) {
+            prodWrap = prepareProductsList(caseList[0]);
+        }
+        return prodWrap; 
+    }
+    /**
+     * Passing the case object instance, prepares the wrapper based on details fetched from home country relationship object
+     * HCR - junction object to maintain relationship b/w customer,country, product, type and prices.
+     * */
+    private static List<N26_CountryDetailsWrapper> prepareProductsList(Case csObj) {
+        Map<String,List<N26_CountryDetailsWrapper.N26_ProductDetailsWrapper>> countryProdDetailsMap = new Map<String,List<N26_CountryDetailsWrapper.N26_ProductDetailsWrapper>>();
+        N26_CountryDetailsWrapper.N26_ProductDetailsWrapper prodDetailWrapper = new N26_CountryDetailsWrapper.N26_ProductDetailsWrapper();
+        Map<String,String> prodIdMap = new Map<String,String>();
+        String homeCountry = csObj.Contact.Home_Country__r.Name;
+        for(Home_Country_Relationship__c hcrObj:[Select Product__r.Name,Product_Type__c,Product__r.Id,
+                                                 Home_Country__r.Name,Amount__c,Home_Country__r.Currency_ISO_Code__c 
+                                                 from Home_Country_Relationship__c where Contact__c =: csObj.contactId AND Home_Country__c =:csObj.Contact.Home_Country__c ]) {
+                                                     
+                                                     if(!countryProdDetailsMap.containsKey(hcrObj.Product__r.Name)) {
+                                                         prodDetailWrapper = new N26_CountryDetailsWrapper.N26_ProductDetailsWrapper();
+                                                         prodDetailWrapper.productType = hcrObj.Product_Type__c; 
+                                                         prodDetailWrapper.amount = formatCurrency(hcrObj.Home_Country__r.Currency_ISO_Code__c,hcrObj.Amount__c);
+                                                         prodDetailWrapper.recordId = hcrObj.Id;
+                                                         prodDetailWrapper.currencyISO =  hcrObj.Home_Country__r.Currency_ISO_Code__c; 
+                                                         countryProdDetailsMap.put(hcrObj.Product__r.Name, new List<N26_CountryDetailsWrapper.N26_ProductDetailsWrapper> {prodDetailWrapper}); 
+                                                     }else {
+                                                         prodDetailWrapper = new N26_CountryDetailsWrapper.N26_ProductDetailsWrapper();
+                                                         prodDetailWrapper.productType = hcrObj.Product_Type__c; 
+                                                         prodDetailWrapper.amount = formatCurrency(hcrObj.Home_Country__r.Currency_ISO_Code__c,hcrObj.Amount__c);
+                                                         prodDetailWrapper.recordId = hcrObj.Id;
+                                                         prodDetailWrapper.currencyISO =  hcrObj.Home_Country__r.Currency_ISO_Code__c; 
+                                                         countryProdDetailsMap.get(hcrObj.Product__r.Name).add(prodDetailWrapper); 
+                                                     } 
+                                                     prodIdMap.put(hcrObj.Product__r.Name,hcrObj.Product__r.Id);
+                                                 }
+        List<N26_CountryDetailsWrapper> countryDetailsList = new List<N26_CountryDetailsWrapper>();
+        N26_CountryDetailsWrapper countryDetObj;
+        for(String prodDet:countryProdDetailsMap.keySet()) {
+            countryDetObj = new N26_CountryDetailsWrapper();
+            countryDetObj.productName = prodDet;
+            countryDetObj.countryName = homeCountry;
+            countryDetObj.productId = prodIdMap.get(prodDet);
+            countryDetObj.tableDataWrapper = countryProdDetailsMap.get(prodDet);
+            countryDetailsList.add(countryDetObj);
+        } 
+        return countryDetailsList;
+    } 
+    /**
+     * Receive wrapper input from lightning component along with contextId (Case).
+     * Performs an upsert based on value entered, existing products information is updated.
+     * 
+     * */
+    @AuraEnabled
+    public static Boolean saveProductDetails(String productDetails, String recordId) {
+        try {
+        N26_CountryDetailsWrapper inputDetails = (N26_CountryDetailsWrapper) JSON.deserialize(productDetails, N26_CountryDetailsWrapper.class);
+        List<Product2> productList = new List<Product2>();
+        List<Home_Country_Relationship__c> junctionList = new List<Home_Country_Relationship__c>();
+        Home_Country_Relationship__c juncObj;
+        List<N26_CountryDetailsWrapper.N26_ProductDetailsWrapper> tableDetWrapper = new List<N26_CountryDetailsWrapper.N26_ProductDetailsWrapper>();
+        Case csObj;
+        List<Case> csList = getCaseDetails(recordId);
+        if(!csList.isEmpty()) {
+            csObj = csList[0]; 
+        }
+        productList.add(createProductInstance(inputDetails));
+        junctionList.addAll(createJunctionObjectInstances(inputDetails.tableDataWrapper,inputDetails.productId,recordId));
+        if(!productList.isEmpty()) {
+            Database.upsert(productList);
+        }
+        if(!junctionList.isEmpty()) {
+            Database.upsert(junctionList);  
+        }
+            return true;
+        }catch (Exception ex) {
+            return false;
+        }
+    }
+    /**
+     * Get Customer details from case based on current context
+     * 
+     * */
+    public static List<Case> getCaseDetails(String recordId) {
+        return [Select Id,ContactId,Contact.Home_Country__r.Name,Contact.Home_Country__c from Case where Id =:recordId];
+    }
+    /**
+     * Create new products, home country relationships, product types 
+     * for the corresponding contextId
+     * */
+    @AuraEnabled
+    public static Boolean createProduct(String productDetails, String recordId) {
+        try {
+        N26_CountryDetailsWrapper inputDetails = (N26_CountryDetailsWrapper) JSON.deserialize(productDetails, N26_CountryDetailsWrapper.class);
+        String productId;
+        List<Product2> prodList = new List<Product2>();
+        List<Home_Country_Relationship__c> junctionList = new List<Home_Country_Relationship__c>();
+        //there will be one product inserted at a time
+        prodList.add(createProductInstance(inputDetails));
+        if(!prodList.isEmpty()) {
+            Database.SaveResult[] srResult = Database.insert(prodList);
+            for (Database.SaveResult sr : srResult) { 
+                if(sr.isSuccess()) {
+                    productId = sr.getId();  
+                }
+            }
+        }
+        //create junction object records
+        junctionList.addAll(createJunctionObjectInstances(inputDetails.tableDataWrapper,productId,recordId));
+        if(!junctionList.isEmpty()) {
+            Database.insert(junctionList);
+        }
+            return true;
+        }catch (Exception ex) {
+            return false;
+        }
+    }
+    /**
+     * Create product2 instance, passing wrapper input
+     * 
+	**/
+    private static Product2 createProductInstance(N26_CountryDetailsWrapper inputDetails) {
+        Product2 prod = new Product2();
+        if(!String.isBlank(inputDetails.productId)) {
+            prod.Id = inputDetails.productId;
+        }
+        prod.Name = inputDetails.productName;
+        return prod;
+    }
+    /**
+     * Create Junction object instances, invoked during editing and creating products
+     * update product types,products & customer association 
+     * 
+     **/
+    private static List<Home_Country_Relationship__c> createJunctionObjectInstances(List<N26_CountryDetailsWrapper.N26_ProductDetailsWrapper> juncList, String productId, String recordId) {
+        Case csObj;
+        List<Home_Country_Relationship__c> junctionList = new List<Home_Country_Relationship__c>();
+        Home_Country_Relationship__c juncObj;
+        List<Case> csList = getCaseDetails(recordId);
+        if(!csList.isEmpty()) {
+            csObj = csList[0]; 
+        }
+        for(N26_CountryDetailsWrapper.N26_ProductDetailsWrapper junObj:juncList) {
+            juncObj = new Home_Country_Relationship__c();
+            juncObj.Amount__c = junObj.amount;
+            juncObj.Product_Type__c = junObj.productType;
+            if(String.isBlank(junObj.recordId)) {
+                juncObj.Home_Country__c = csObj.Contact.Home_Country__c;
+                juncObj.Contact__c = csObj.ContactId;
+                juncObj.Product__c = productId;   
+            } else {
+                juncObj.Id = junObj.recordId;
+            }
+            junctionList.add(juncObj);
+        }
+        return junctionList;
+    }
+    /**
+     * Format currency as per country, based on currency ISO code
+     * Home country object
+     * **/
+    private Static String formatCurrency(String currencyISO,String amountVal) {
+        String formatted;
+        //check if the string is numeric
+        System.debug('amount'+amountVal);
+        if(amountVal.isNumeric() && !String.isBlank(currencyISO)) {
+        String template = currencyISO+' {0}';
+        List<Object> parameters = new List<Object> {amountVal};
+        formatted = String.format(template, parameters);
+        } else {
+            formatted = amountVal;
+        }
+        return formatted;
+    }
+    
+}
