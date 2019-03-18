@@ -1,0 +1,35 @@
+/*******************************************************************************************************************  
+Apex Class Name     : N26_Utility  
+Created Date        : 18 March 2019
+Description         : Utility class to store reusable methods,constants and common logic across org
+
+* Developer                         Date                   Description
+* -----------------------------------------------------------------------------------------------------------------                      
+* Ramanarayanan P                 3/18/2019                 Original Version
+*************************************************************************************************************************/
+public class N26_Utility {
+    
+    public static Boolean checkSurveyDateLimits(DateTime surveyDtTime) {
+        DateTime currDateTime = System.now();
+        //check if date is less than current date, return
+        if(currDateTime.date() > surveyDtTime.date()) {
+            return true;
+        }
+        //check if the date is same date and check hours, millisecond difference
+        if(currDateTime.isSameDay(surveyDtTime)) {
+            //check hours difference and return
+            if(System.now().hour() > surveyDtTime.hour()) {
+                return true;
+            }
+            //check if the hours are same
+            if(System.now().hour() == surveyDtTime.hour()) {
+                //check minutes
+                if(System.now().minute() > surveyDtTime.minute()) {
+                    return true;
+                } 
+            }
+        }
+        return false;
+    }
+    
+}
