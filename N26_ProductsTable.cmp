@@ -1,0 +1,43 @@
+<aura:component implements="flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId" controller="N26_ProductsController" access="global" >
+    
+    <!--PRIVATE ATTRIBUTES START-->
+    <aura:attribute name="recordId" type="String" access = "public"/>
+    <aura:attribute name="productList" type="Object" access="public"/>
+    <aura:attribute name="newProductObj" type="Object" access="public"/>
+    <aura:attribute name="hideEditButton" type="Boolean" default="false"/>
+    <!--PRIVATE ATTRIBUTES END-->
+    
+    <!--HANDLER START-->
+    <aura:handler name="init" value="{!this}" action="{!c.loadProducts}"/> 
+    <!--HANDLER END-->
+    
+    <!--MARKUP START-->
+    <div>
+        <lightning:button label= "Add New Products" iconName="utility:add"  title="Add New Products" onclick="{!c.addNewProducts}"/>
+        <aura:if isTrue="{!empty(v.productList)}">
+            <ui:message title="Information" severity="warning" closable="false">
+                Please contact your System Admin to configure Language/Products for Customer.
+            </ui:message>
+        </aura:if>
+        <!--Display Table Details-->
+        <aura:iteration items="{!v.productList}" var="dataVal" indexVar = "idx">
+            <div  class = "{!dataVal.editVisible ? 'slds-float_right' : 'slds-hide slds-float_right'}">
+                <lightning:button value = "{!dataVal.productId}"  label= "Edit Product Details" variant ="brand"  title="Add Products" onclick="{!c.editProducts}"/>
+            </div>
+            <div class = "{!!dataVal.editVisible ? 'slds-float_right ' : 'slds-hide slds-float_right'}">
+                <lightning:button value ="{!dataVal.productId}" label="Add Product Types" iconName="utility:add"  title="Add Product Types" onclick="{!c.addProducts}"/>
+                <lightning:button value="{!dataVal}" label="Save Products" variant ="brand"  title="Add Products" onclick="{!c.saveProducts}"/> 
+                <lightning:button value = "{!dataVal.productId}" label= "Cancel" title="Add Products" onclick="{!c.cancelAction }"/>
+            </div>
+            <br/>
+            <c:N26_ProductDetails productDetails="{!dataVal}" />
+        </aura:iteration>
+        
+        <!--new product modal-->
+        <c:N26_NewProductModal aura:id="newModal" save = "{!c.createNewProducts}" cancel = "{!c.cancelAction}" size="large" header = "Add a new Product" saveLabel = "Save Products" closeLabel = "Cancel" >
+            <lightning:button value ="{!v.newProductObj.productId}" label="Add Product Types" iconName="utility:add"  title="Add Product Types" onclick="{!c.addProducts}"/>
+            <c:N26_ProductDetails productDetails="{!v.newProductObj}" />
+        </c:N26_NewProductModal>
+    </div>
+    <!--MARKUP END-->
+</aura:component>
