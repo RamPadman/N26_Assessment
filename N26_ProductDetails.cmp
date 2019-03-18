@@ -1,0 +1,52 @@
+<aura:component implements="flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId" access="global" >
+    <aura:attribute name="productDetails" type="Object" access="public"/>
+    <!--Table Details -->
+    <div>
+        <br/>
+        <table class="slds-table slds-table--bordered slds-table--striped slds-border_right slds-border_left n26-tWidth">
+            <thead>
+                <tr class="slds-line-height_reset">
+                    <aura:if isTrue="{!v.productDetails.isEditable}">
+                        <th>
+                            <lightning:input type="text" value= "{!v.productDetails.productName}" />
+                        </th>
+                        <th>
+                            <div class = "slds-truncate">  {!v.productDetails.countryName} </div>
+                        </th>
+                        <aura:set attribute = "else">    
+                            <th class="slds-cell-shrink">
+                                <div class = "slds-truncate">    {!v.productDetails.productName} </div>
+                            </th>
+                            <th class="slds-cell-shrink">
+                                <div class = "slds-truncate">    {!v.productDetails.countryName} </div>
+                            </th>
+                        </aura:set>
+                    </aura:if>
+                </tr>
+            </thead>
+            <tbody>
+                <aura:iteration items="{!v.productDetails.tableDataWrapper}" var="dataVal" indexVar = "i">
+                    <tr class=" slds-text-heading--label">
+                        <aura:if isTrue = "{!dataVal.isEditable}">
+                            <td class="slds-cell-shrink">
+                                <lightning:input type="text" value= "{!dataVal.productType}" />  
+                            </td>
+                            <td class="slds-cell-shrink">
+                                <lightning:input type="text" currencyCode = "EUR" formatter="currency" value= "{!dataVal.amount}" />  
+                            </td>
+                            <aura:set attribute ="else">
+                                <td class="slds-cell-shrink">
+                                    <div class = "slds-truncate">  {!dataVal.productType} </div>
+                                </td>
+                                <td class="slds-cell-shrink">
+                                    <div class = "slds-truncate"> {!dataVal.amount} </div>
+                                </td>
+                            </aura:set>
+                        </aura:if>
+                    </tr>
+                </aura:iteration>
+            </tbody>
+        </table>
+        <br/>
+    </div>
+</aura:component>
