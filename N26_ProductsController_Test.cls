@@ -21,13 +21,16 @@ public class N26_ProductsController_Test {
     
     public static testMethod void productControllerTest() {
         Case csObj = [Select Id from Case LIMIT 1];
-        N26_ProductsController.getProducts(csObj.Id);
         String prodId = [Select Id from Product2 LIMIT 1].Id;
         String relId = [Select Id from Home_Country_Relationship__c LIMIT 1].Id;
         String prodJSON = '{"countryName":"Germany","editVisible":false,"isEditable":true,"productId":"'+prodId+'","productName":"GenWatt Diesel 200kWI","tableDataWrapper":[{"amount":"EUR9878","currencyISO":"EUR","isEditable":true,"productType":"Metals","recordId":"'+relId+'"}]}';
-        N26_ProductsController.saveProductDetails(prodJSON,csObj.Id);
         String createProd = '{"countryName":"Germany","editVisible":false,"isEditable":true,"productId":"","productName":"GenWatt Diesel 200kWI","tableDataWrapper":[{"amount":"EUR9878","currencyISO":"EUR","isEditable":true,"productType":"Metals","recordId":""}]}';
+		Test.startTest();
+        List<N26_CountryDetailsWrapper> wrapList =  N26_ProductsController.getProducts(csObj.Id);
+        System.assertEquals(false, wrapList.isEmpty());
+        N26_ProductsController.saveProductDetails(prodJSON,csObj.Id);
         N26_ProductsController.createProduct(createProd,csObj.Id);
+        Test.stopTest();
         
     }    
 
